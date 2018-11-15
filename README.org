@@ -1,0 +1,49 @@
+* GitHub NPM Report
+
+** Objective
+
+  Provide a simple report on the NPM packages used in a repository. Provide
+  details on
+
+  - Current package version
+  - Latest version within the same semantic version number
+  - Latest overall released version
+  - Any known security issues with currently used version
+
+  We have a number of different nodejs based projects worked on by different
+  teams. One requirement we have is to be easily able to get a snapshot of all
+  the currently used NPM packages. This would help standardise which packages
+  are being used across projects e.g. all projects use the same package to
+  process command line arguments. We also wanted an easy way of viewing package
+  versions across projects to identify which projects may need to be updated. 
+
+  In addition to obtaining an overview of what packages are being used within
+  our projects, we need an easy way of getting a snapshot across our projects
+  regarding where we may want to focus update/upgrade processes. This includes
+  being able to see which packages we are using that may have security issues. 
+
+** Approach 
+
+  For various reasons, our projects have different layouts with /package.json/
+  files in different locations. We also have a mix of node versions, so some
+  projects include a /package-lock.json/ file and some do not. We needed an
+  approach which did not care about the repository layout or rely on
+  /package-lock.json/ files (especially with respect to security audits). 
+
+  The proposed solution is to use the GitHub API to find all package.json and
+  package-lock.json files which is independent of any assumption regarding
+  repository layout. The theory is to use the API to retrieve the relevant
+  /blobs/, parse them to get the relevant information and then use the
+  /npmjs.com/ API to get additional information from the public registry. At
+  this time, there is no requirement to support queries to other
+  registries. This may be added later. 
+
+  Initially, the objective is to create command line scripts that can generate
+  simple text reports. Once the basic concept has been proven to work, a Web or
+  some other GUI interface may be added. 
+
+** Status
+
+  This is really an experiment. A number of assumptions have been made which may
+  not hold. 
+
