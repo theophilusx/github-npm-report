@@ -1,0 +1,32 @@
+{
+  "name": "github-npm-report",
+  "version": "1.0.0",
+  "description": "A basic report on NPM packages used in a GitHub repository",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theophilusx/github-npm-report.git"
+  },
+  "keywords": [
+    "NPM",
+    "packages",
+    "audit"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/theophilusx/github-npm-report/issues"
+  },
+  "homepage": "https://github.com/theophilusx/github-npm-report#readme",
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^5.2.0"
+  },
+  "dependencies": {
+    "github-api": "^3.0.0",
+    "verror": "^1.10.0"
+  }
+}
