@@ -1,6 +1,8 @@
 "use strict";
 
 const VError = require("verror");
+const latestVersion = require("latest-version");
+const semver = require("semver");
 
 function parsePackageJsonObj(pkgObj) {
   let depSet = new Set();
@@ -21,6 +23,30 @@ function parsePackageJsonObj(pkgObj) {
   }
 }
 
+function nextMajor(v) {
+  let m = parseInt(v.split(".")[0]) + 1;
+  return `${m}.0.0`;
+}
+
+async function packageVersions(packageList) {
+  let packageInfo = new Map();
+
+  for (let e of packageList.values()) {
+    let [name, version] = e.split("|");
+    let latest = await latestVersion(name);
+    let ver = semver.valid(semver.coerce(version));
+    let majorVer = `<${nextMajor(ver)}`;
+    let majorLatest = await latestVersion(name, {version: majorVer});
+    packageInfo.set(name, {
+      version: version,
+      next: majorLatest,
+      latest: latest
+    });
+  }
+  return packageInfo;
+}
+
 module.exports = {
-  parsePackageJsonObj
+  parsePackageJsonObj,
+  packageVersions
 };

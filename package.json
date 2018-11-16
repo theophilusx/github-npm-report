@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "github-api": "^3.0.0",
+    "latest-version": "^4.0.0",
+    "semver": "^5.6.0",
     "verror": "^1.10.0"
   }
 }
