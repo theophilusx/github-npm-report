@@ -41,7 +41,6 @@ function getOrganizationRepos(orgName) {
 
 async function searchBranch(repository, tree, path = "root") {
   try {
-    console.log(`Searching ${path}`);
     let files = [];
     let {data} = await repository.getTree(tree);
     for (let entry of data.tree) {
@@ -77,9 +76,22 @@ function findPackageJson(orgName, repoName, branch) {
     });
 }
 
+function getBlob(orgName, repoName, fileSha) {
+  const repo = gh.getRepo(orgName, repoName);
+
+  return repo.getBlob(fileSha)
+    .then(resp => {
+      return resp.data;
+    })
+    .catch(err => {
+      throw new VError(err, `Failed to get blob for ${fileSha}`);
+    });
+}
+
 module.exports = {
   getGithubConfig,
   init,
   getOrganizationRepos,
-  findPackageJson
+  findPackageJson,
+  getBlob
 };
