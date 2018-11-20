@@ -37,12 +37,28 @@ github.findPackageJson(orgUnit,repoName, branch)
     return buildPackageLists(orgUnit, repoName, files);
   })
   .then(([dep, dev]) => {
+    return Promise.all([
+      packages.packageVersions(dep),
+      packages.packageVersions(dev)
+    ]);
+  })
+  .then(([dep, dev]) => {
+    console.log("Core Dependencies");
+    for (let p of dep.keys()) {
+      console.log(p);
+      let info = dep.get(p);
+      console.log(`Current: ${info.current} Next: ${info.next} Latest: ${info.latest}`);
+    }
+    console.log("Developemnt Dependencies");
+    for (let p of dev.keys()) {
+      console.log(p);
+      let info = dev.get(p);
+      console.log(`Current: ${info.current} Next: ${info.next} Latest: ${info.latest}`);
+    }
     return audit.allDependencies(dep, dev);
   })
   .then(dep => {
-    for (let c of dep.coordinates) {
-      console.log(c);
-    }
+    console.dir(dep);
     return audit.getAuditReport(rc, dep);
   })
   .then(data => {

@@ -1,9 +1,6 @@
 "use strict";
 
-const zlib = require("zlib");
-const os = require("os");
 const VError = require("verror");
-const semver = require("semver");
 const fetch = require("node-fetch");
 
 const apiPath = "/api/v3/component-report";
@@ -15,27 +12,33 @@ const apiOptions = {
   }
 };
 
-function allDependencies(depSet, devDepSet) {
+function allDependencies(depInfo, devDepInfo) {
   let coordinates = [];
-  for (let v of depSet.values()) {
-    let [name, version] = v.split("|");
-    coordinates.push(`pkg:npm/${name}@${semver.valid(semver.coerce(version))}`);
+  for (let c of depInfo.keys()) {
+    coordinates.push(c);
   }
-  for (let v of devDepSet.values()) {
-    let [name, version] = v.split("|");
-    coordinates.push(`pkg:npm/${name}@${semver.valid(semver.coerce(version))}`);
-  }
+  // for (let c of devDepInfo.keys()) {
+  //   coordinates.push(c);
+  // }
   return {
     coordinates: coordinates.sort()
   };
 }
 
 function getAuditReport(config, data) {
-  let auth = Buffer.from(`${config.ossUser}:${config.ossToken}`, "utf-8").toString("base64");
-  apiOptions.headers.Authorization = "Basic " + auth;
-  apiOptions.body = JSON.stringify(data);
+  let auth = Buffer.from(`${config.ossUser}:${config.ossToken}`).toString("base64");
+  let options = {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: {
+      "Content-Type": "application/vnd.ossindex.component-report-request.v1+json",
+      "Authorization": "Basic " + auth
+    }
+  };
+  //apiOptions.headers.Authorization = "Basic " + auth;
+  //apiOptions.body = JSON.stringify(data);
   let url = "https://" + config.ossHost + apiPath;
-  return fetch(url, apiOptions)
+  return fetch(url, options)
     .then(resp => {
       if (resp.ok) {
         return resp.json();
