@@ -3,6 +3,7 @@
 const config = require("./config");
 const github = require("./github");
 const packages = require("./packages");
+const audit = require("./audit");
 
 const rc = config.getConfig(".github-npm-report.json");
 const orgUnit = process.argv[2];
@@ -36,10 +37,16 @@ github.findPackageJson(orgUnit,repoName, branch)
     return buildPackageLists(orgUnit, repoName, files);
   })
   .then(([dep, dev]) => {
-    return packages.packageVersions(dep);
+    return audit.allDependencies(dep, dev);
   })
-  .then(pInfo => {
-    console.dir(pInfo);
+  .then(dep => {
+    for (let c of dep.coordinates) {
+      console.log(c);
+    }
+    return audit.getAuditReport(rc, dep);
+  })
+  .then(data => {
+    console.log(data);
   })
   .catch(err => {
     console.error(err.message);
