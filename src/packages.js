@@ -12,10 +12,20 @@ function parsePackageJsonObj(pkgObj) {
     let deps = pkgObj.dependencies || {};
     let devDeps = pkgObj.devDependencies || {};
     for (let k of Object.keys(deps)) {
-      depSet.add(`${k}|${deps[k]}`);
+      let version = semver.valid(semver.coerce(deps[k]));
+      if (version) {
+        depSet.add(`pkg:npm/${k}@${version}`);        
+      } else {
+        console.log(`Core package with bad version: ${k}/${deps[k]}`);
+      }
     }
     for (let k of Object.keys(devDeps)) {
-      devDepSet.add(`${k}|${devDeps[k]}`);
+      let version = semver.valid(semver.coerce(devDeps[k]));
+      if (version) {
+        devDepSet.add(`pkg:npm/${k}@${version}`);        
+      } else {
+        console.log(`Dev package with bad version ${k}/${devDeps[k]}`);
+      }
     }
     return [depSet, devDepSet];
   } catch (err) {
@@ -32,16 +42,23 @@ async function packageVersions(packageList) {
   let packageInfo = new Map();
 
   for (let e of packageList.values()) {
-    let [name, version] = e.split("|");
-    let latest = await latestVersion(name);
-    let ver = semver.valid(semver.coerce(version));
-    let majorVer = `<${nextMajor(ver)}`;
-    let majorLatest = await latestVersion(name, {version: majorVer});
-    packageInfo.set(name, {
-      version: version,
-      next: majorLatest,
-      latest: latest
-    });
+    let [name, version] = e.split("/")[1].split("@");
+    try {
+      let latest = await latestVersion(name);
+      let majorVer = `<${nextMajor(version)}`;
+      let majorLatest = await latestVersion(name, {version: majorVer});
+      packageInfo.set(e, {
+        current: version,
+        next: majorLatest,
+        latest: latest
+      });
+    } catch (err) {
+      packageInfo.set(e, {
+        current: version,
+        next: err.message,
+        latest: err.message
+      });
+    }
   }
   return packageInfo;
 }
