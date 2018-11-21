@@ -16,7 +16,6 @@ async function buildPackageLists(orgName, repoName, packageFiles) {
   
   for (let [name, sha] of packageFiles) {
     if (name.match(/package.json/)) {
-      console.log(`Processing ${name}`);
       let pkgObj = await github.getBlob(orgName, repoName, sha);
       depInfo = packages.parsePackageJsonObj(pkgObj, depInfo, "dependencies");
       devDepInfo = packages.parsePackageJsonObj(pkgObj, devDepInfo, "devDependencies");
@@ -38,9 +37,11 @@ function dumpToOrg(pkgInfo) {
     console.log(`| Current | ${info.current} |`);
     console.log(`| Next | ${info.next} |`);
     console.log(`| Latest | ${info.latest} |`);
-    console.log("*** Used by");
-    for (let u of info.usedBy) {
-      console.log(`| ${u.name}@${u.version} | ${u.description} |`);
+    if (info.usedBy && info.usedBy.length) {
+      console.log("*** Used by");
+      for (let u of info.usedBy) {
+        console.log(`| ${u.name}@${u.version} | ${u.description} |`);
+      }
     }
     if (info.vulnerabilities && info.vulnerabilities.length) {
       console.log("*** Vulnerabilities");
@@ -71,8 +72,9 @@ github.findPackageJson(orgUnit,repoName, branch)
     ]);
   })
   .then(([dep, dev]) => {
+    console.log(`dep size ${dep.size} dev size ${dev.size}`);
     return Promise.all([
-      audit.getAuditReport(rc, dep),
+      audit.doLargeAuditReport(rc, dep),
       audit.getAuditReport(rc, dev)
     ]);
   })

@@ -58,6 +58,42 @@ function getAuditReport(config, pkgInfo) {
     });
 }
 
+function doLargeAuditReport(rc, pkgInfo) {
+  let maxSize = 60;
+  let cnt = 0;
+  let pkgs = [];
+  let newPkg = new Map();
+  for (let p of pkgInfo.keys()) {
+    newPkg.set(p, pkgInfo.get(p));
+    cnt++;
+    if (cnt % maxSize === 0) {
+      pkgs.push(newPkg);
+      newPkg = new Map();
+    }
+  }
+  if (newPkg.size) {
+    pkgs.push(newPkg);
+  }
+  let promises = [];
+  for (let p of pkgs) {
+    promises.push(getAuditReport(rc, p));
+  }
+  return Promise.all(promises)
+    .then(rpts => {
+      let newPkgInfo = new Map();
+      for (let r of rpts) {
+        for (let p of r.keys()) {
+          newPkgInfo.set(p, r.get(p));
+        }
+      }
+      return newPkgInfo;
+    })
+    .catch(err => {
+      throw new VError(err, "doLargeAuditReport Error");
+    });
+}
+
 module.exports = {
-  getAuditReport
+  getAuditReport,
+  doLargeAuditReport
 };
