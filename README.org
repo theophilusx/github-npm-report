@@ -38,12 +38,106 @@
   this time, there is no requirement to support queries to other
   registries. This may be added later. 
 
-  Initially, the objective is to create command line scripts that can generate
-  simple text reports. Once the basic concept has been proven to work, a Web or
-  some other GUI interface may be added. 
+  Finding any relevant API documentation for npmjs.com's security information
+  has proven difficult. Therefore, the Open source Security Index at
+  https://ossindex.sonatype.org has been used to lookup known security
+  vulnerabilities for NPM packages in the npmjs.com public repository. 
 
 ** Status
 
   This is really an experiment. A number of assumptions have been made which may
-  not hold. 
+  not hold. At this point, basic reports in org file format are generated. The
+  long-term plan is to have the information recorded in a database and provide a
+  simple web front-end to query and search this information. 
+
+** Usage
+
+  To install and run do the following:
+
+1. Clone the repository 
+2. Run npm install
+3. Create a .github-npm-report.json file in your home directory with the
+   following properties
+
+#+BEGIN_SRC javascript
+  {
+    "username": "github user name",
+    "oauthTOken": "github oauth token",
+    "ossUser": "ossindex user - it is free to register",
+    "ossToken": "ossindex auth token - see oss site for details",
+     "ossHost": "ossindex.sonatype.org"
+  }
+#+END_SRC
+
+4. Run the script with arguments of github user/organisation name, repostitory
+   name and repository branch e.g.
+
+#+BEGIN_EXAMPLE
+$ node src/index theophilusx github-npm-report master
+#+END_EXAMPLE
+
+** Sample Output
+
+  Running the command on this repository gives the following output. Note that
+  as there are no vulnerabilities in the current repository, none are shown in
+  the output below. If there were any, an additional Vulnerabilities section
+  would also be included. 
+
+*** Core Dependencies
+**** github-api@3.0.0 - A higher-level wrapper around the Github API.
+  | Current | 3.0.0 |
+  | Next    | 3.0.0 |
+  | Latest  | 3.0.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+**** latest-version@4.0.0 - Get the latest version of a npm package
+  | Current | 4.0.0 |
+  | Next    | 4.0.0 |
+  | Latest  | 4.0.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+**** node-fetch@2.3.0 - A light-weight module that brings window.fetch to node.js and io.js
+  | Current | 2.3.0 |
+  | Next    | 2.3.0 |
+  | Latest  | 2.3.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+**** npm-registry-fetch@3.8.0 - undefined
+  | Current | 3.8.0 |
+  | Next    | 3.8.0 |
+  | Latest  | 3.8.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+**** semver@5.6.0 - The semantic version parser used by npm.
+  | Current | 5.6.0 |
+  | Next    | 5.6.0 |
+  | Latest  | 5.6.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+**** verror@1.10.0 - richer JavaScript errors
+  | Current | 1.10.0 |
+  | Next    | 1.10.0 |
+  | Latest  | 1.10.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+*** Development Dependencies
+**** chai@4.2.0 - BDD/TDD assertion library for node.js and the browser. Test framework agnostic.
+  | Current | 4.2.0 |
+  | Next    | 4.2.0 |
+  | Latest  | 4.2.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
+
+**** mocha@5.2.0 - simple, flexible, fun test framework
+  | Current | 5.2.0 |
+  | Next    | 5.2.0 |
+  | Latest  | 5.2.0 |
+***** Used by
+  | github-npm-report@1.0.0 | A basic report on NPM packages used in a GitHub repository |
 
