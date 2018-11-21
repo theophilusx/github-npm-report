@@ -12,39 +12,46 @@ const apiOptions = {
   }
 };
 
-function allDependencies(depInfo, devDepInfo) {
+function getCoordinates(pkgInfo) {
   let coordinates = [];
-  for (let c of depInfo.keys()) {
+  for (let c of pkgInfo.keys()) {
     coordinates.push(c);
   }
-  // for (let c of devDepInfo.keys()) {
-  //   coordinates.push(c);
-  // }
   return {
     coordinates: coordinates.sort()
   };
 }
 
-function getAuditReport(config, data) {
+function getAuditReport(config, pkgInfo) {
   let auth = Buffer.from(`${config.ossUser}:${config.ossToken}`).toString("base64");
   let options = {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify(getCoordinates(pkgInfo)),
     headers: {
       "Content-Type": "application/vnd.ossindex.component-report-request.v1+json",
       "Authorization": "Basic " + auth
     }
   };
-  //apiOptions.headers.Authorization = "Basic " + auth;
-  //apiOptions.body = JSON.stringify(data);
   let url = "https://" + config.ossHost + apiPath;
   return fetch(url, options)
     .then(resp => {
       if (resp.ok) {
         return resp.json();
       } else {
-        throw new VError(`Error: ${resp.statusText}`);
+        throw new Error(`Response Error: ${resp.statusText}`);
       }
+    })
+    .then(data => {
+      for (let r of data) {
+        let coord = r.coordinates.toLowerCase();
+        if (pkgInfo.has(coord)) {
+          pkgInfo.get(coord).description = r.description;
+          pkgInfo.get(coord).vulnerabilities = r.vulnerabilities;
+        } else {
+          console.log(`${r.coordinates} not found in package info map`);
+        }
+      }
+      return pkgInfo;
     })
     .catch(err => {
       throw new VError(err, "Failed to retireve audit report");
@@ -52,6 +59,5 @@ function getAuditReport(config, data) {
 }
 
 module.exports = {
-  allDependencies,
   getAuditReport
 };

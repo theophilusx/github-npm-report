@@ -11,23 +11,51 @@ const repoName = process.argv[3];
 const branch = process.argv[4];
 
 async function buildPackageLists(orgName, repoName, packageFiles) {
-  let depSet = new Set();
-  let devDepSet = new Set();
+  let depInfo = new Map();
+  let devDepInfo = new Map();
   
   for (let [name, sha] of packageFiles) {
     if (name.match(/package.json/)) {
       console.log(`Processing ${name}`);
       let pkgObj = await github.getBlob(orgName, repoName, sha);
-      let [dep, dev] = packages.parsePackageJsonObj(pkgObj);
-      for (let i of dep.values()) {
-        depSet.add(i);
-      }
-      for (let i of dev.values()) {
-        devDepSet.add(i);
-      }
+      depInfo = packages.parsePackageJsonObj(pkgObj, depInfo, "dependencies");
+      devDepInfo = packages.parsePackageJsonObj(pkgObj, devDepInfo, "devDependencies");
     }
   }
-  return [depSet, devDepSet];
+  return [depInfo, devDepInfo];
+}
+
+function dumpToOrg(pkgInfo) {
+  let packageKeys = [];
+  for (let i of pkgInfo.keys()) {
+    packageKeys.push(i);
+  }
+  packageKeys = packageKeys.sort();
+  for (let p of packageKeys) {
+    let info = pkgInfo.get(p);
+    let name = p.split("/")[1];
+    console.log(`** ${name} - ${info.description}`);
+    console.log(`| Current | ${info.current} |`);
+    console.log(`| Next | ${info.next} |`);
+    console.log(`| Latest | ${info.latest} |`);
+    console.log("*** Used by");
+    for (let u of info.usedBy) {
+      console.log(`| ${u.name}@${u.version} | ${u.description} |`);
+    }
+    if (info.vulnerabilities && info.vulnerabilities.length) {
+      console.log("*** Vulnerabilities");
+      for (let v of info.vulnerabilities) {
+        console.log(`**** Title: ${v.title}`);
+        console.log(`${v.description}`);
+        console.log(`| ID | ${v.id} |`);
+        console.log(`| CVSS Score | ${v.cvssScore} |`);
+        console.log(`| CVSS Vector | ${v.cvssVector} |`);
+        console.log(`| CWE: | ${v.cwe} |`);
+        console.log(`| References | ${v.reference} |`);
+      }
+    }
+    console.log("");
+  }
 }
 
 github.init(rc);
@@ -43,26 +71,19 @@ github.findPackageJson(orgUnit,repoName, branch)
     ]);
   })
   .then(([dep, dev]) => {
-    console.log("Core Dependencies");
-    for (let p of dep.keys()) {
-      console.log(p);
-      let info = dep.get(p);
-      console.log(`Current: ${info.current} Next: ${info.next} Latest: ${info.latest}`);
-    }
-    console.log("Developemnt Dependencies");
-    for (let p of dev.keys()) {
-      console.log(p);
-      let info = dev.get(p);
-      console.log(`Current: ${info.current} Next: ${info.next} Latest: ${info.latest}`);
-    }
-    return audit.allDependencies(dep, dev);
+    return Promise.all([
+      audit.getAuditReport(rc, dep),
+      audit.getAuditReport(rc, dev)
+    ]);
   })
-  .then(dep => {
-    console.dir(dep);
-    return audit.getAuditReport(rc, dep);
-  })
-  .then(data => {
-    console.log(data);
+  .then(([depRpt, devRpt]) => {
+    console.log(`#+TITLE: ${repoName} (${branch})`);
+    console.log("#+OPTIONS: ^:nil num:nil toc:2 tags:nil |:t");
+    console.log("");
+    console.log("* Core Dependencies");
+    dumpToOrg(depRpt);
+    console.log("* Development Dependencies");
+    dumpToOrg(devRpt);
   })
   .catch(err => {
     console.error(err.message);

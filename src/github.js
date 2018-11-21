@@ -44,7 +44,7 @@ async function searchBranch(repository, tree, path = "root") {
     let files = [];
     let {data} = await repository.getTree(tree);
     for (let entry of data.tree) {
-      if (entry.path.match(/^package.*\.json/) && entry.type === "blob") {
+      if (entry.path.match(/^package\.json/) && entry.type === "blob") {
         console.log(`Adding ${path}/${entry.path}`);
         files.push([
           path + "/" + entry.path,
