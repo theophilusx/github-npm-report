@@ -53,7 +53,7 @@ async function insertModule(name, version, module) {
   const logName = `${moduleName}.insertModule`;
   const sql =
     "INSERT INTO npmjs.modules (" +
-    "module_name, module_version, description latest_minor_version, " +
+    "module_name, module_version, description, latest_minor_version, " +
     "latest_major_version) VALUES ($1, $2, $3, $4, $5) " +
     "RETURNING module_id";
 
@@ -74,7 +74,7 @@ async function insertModule(name, version, module) {
 async function updateModule(moduleId, module) {
   const logName = `${moduleName}.updateModule`;
   const sql =
-    "UPDATE TABLE npmjs.modules " +
+    "UPDATE npmjs.modules " +
     "SET description = $1, " +
     "latest_minor_version = $2, " +
     "latest_major_version = $3, " +
