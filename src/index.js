@@ -109,14 +109,19 @@ github
       audit.getAuditReport(dev)
     ]);
   })
-  .then(([depRpt, devRpt]) => {
-    console.log(`#+TITLE: ${repoName} (${branch})`);
-    console.log("#+OPTIONS: ^:nil num:nil toc:2 tags:nil |:t");
-    console.log("");
-    console.log("* Core Dependencies");
-    dumpToOrg(depRpt);
-    console.log("* Development Dependencies");
-    dumpToOrg(devRpt);
+  // .then(([depRpt, devRpt]) => {
+  //   console.log(`#+TITLE: ${repoName} (${branch})`);
+  //   console.log("#+OPTIONS: ^:nil num:nil toc:2 tags:nil |:t");
+  //   console.log("");
+  //   console.log("* Core Dependencies");
+  //   dumpToOrg(depRpt);
+  //   console.log("* Development Dependencies");
+  //   dumpToOrg(devRpt);
+  // })
+  .then(async ([depRpt, devRpt]) => {
+    await updateDatabase(depRpt);
+    await updateDatabase(devRpt);
+    return true;
   })
   .catch(err => {
     console.error(err.message);
