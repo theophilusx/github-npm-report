@@ -5,7 +5,6 @@ const latestVersion = require("latest-version");
 const semver = require("semver");
 
 function parsePackageJsonObj(pkgObj, pkgInfo, depType = "dependencies") {
-
   try {
     let pkgName = pkgObj.name || "Unknown";
     let pkgVersion = pkgObj.version || "0.0.0";
@@ -23,11 +22,13 @@ function parsePackageJsonObj(pkgObj, pkgInfo, depType = "dependencies") {
           });
         } else {
           pkgInfo.set(coordinate, {
-            usedBy: [{
-              name: pkgName,
-              version: pkgVersion,
-              description: pkgDesc
-            }]
+            usedBy: [
+              {
+                name: pkgName,
+                version: pkgVersion,
+                description: pkgDesc
+              }
+            ]
           });
         }
       } else {
@@ -45,29 +46,41 @@ function nextMajor(v) {
   return `${m}.0.0`;
 }
 
-async function packageVersions(packageInfo) {
+async function getVersionInfo(name, version) {
+  const logName = "getVersionInfo";
 
+  try {
+    let latest = await latestVersion(name);
+    let majorVersion = `<${nextMajor(version)}`;
+    let majorLatest = await latestVersion(name, {version: majorVersion});
+    return {
+      current: version,
+      next: majorLatest,
+      latest: latest
+    };
+  } catch (err) {
+    console.error(`${logName}: ${err.message}`);
+    return {
+      current: version,
+      next: "unknown",
+      latest: "unknon"
+    };
+  }
+}
+
+async function packageVersions(packageInfo) {
   for (let e of packageInfo.keys()) {
     let [name, version] = e.split("/")[1].split("@");
-    try {
-      let latest = await latestVersion(name);
-      let majorVer = `<${nextMajor(version)}`;
-      let majorLatest = await latestVersion(name, {version: majorVer});
-      packageInfo.get(e).current = version;
-      packageInfo.get(e).next = majorLatest,
-      packageInfo.get(e).latest = latest;
-    } catch (err) {
-      packageInfo.set(e, {
-        current: version,
-        next: err.message,
-        latest: err.message
-      });
-    }
+    let versionInfo = getVersionInfo(name, version);
+    packageInfo.get(e).current = versionInfo.current;
+    packageInfo.get(e).next = versionInfo.next;
+    packageInfo.get(e).latest = versionInfo.latest;
   }
   return packageInfo;
 }
 
 module.exports = {
   parsePackageJsonObj,
+  getVersionInfo,
   packageVersions
 };
