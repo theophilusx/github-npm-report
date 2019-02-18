@@ -5,20 +5,20 @@ const VError = require("verror");
 
 let gh;
 
-function getGithubConfig(rc) {
+function getGithubConfig() {
   let ghConf = {
-    username: rc.username
+    username: process.env.GITHUBUSER
   };
-  if (rc.oauthToken) {
-    ghConf.token = rc.oauthToken;
-  } else if (rc.pasword) {
-    ghConf.password = rc.password;
+  if (process.env.GITHUBTOKEN) {
+    ghConf.token = process.env.GITHUBTOKEN;
+  } else if (process.env.GITHUBPASSWORD) {
+    ghConf.password = process.env.GITHUBPASSWORD;
   }
   return ghConf;
 }
 
-function init(rc) {
-  const conf = getGithubConfig(rc);
+function init() {
+  const conf = getGithubConfig();
   gh = new GitHub(conf);
   return gh;
 }
@@ -26,7 +26,8 @@ function init(rc) {
 function getOrganizationRepos(orgName) {
   const org = gh.getOrganization(orgName);
 
-  return org.getRepos()
+  return org
+    .getRepos()
     .then(({data}) => {
       let repoList = [];
       for (let r of data) {
@@ -45,12 +46,13 @@ async function searchBranch(repository, tree, path = "root") {
     let {data} = await repository.getTree(tree);
     for (let entry of data.tree) {
       if (entry.path.match(/^package\.json/) && entry.type === "blob") {
-        files.push([
-          path + "/" + entry.path,
-          entry.sha
-        ]);
+        files.push([path + "/" + entry.path, entry.sha]);
       } else if (entry.type === "tree") {
-        let dirFiles = await searchBranch(repository, entry.sha, path + "/" + entry.path);
+        let dirFiles = await searchBranch(
+          repository,
+          entry.sha,
+          path + "/" + entry.path
+        );
         if (dirFiles.length) {
           files = files.concat(dirFiles);
         }
@@ -65,20 +67,25 @@ async function searchBranch(repository, tree, path = "root") {
 function findPackageJson(orgName, repoName, branch) {
   const repo = gh.getRepo(orgName, repoName);
 
-  return repo.getBranch(branch)
+  return repo
+    .getBranch(branch)
     .then(({data}) => {
       let treeSha = data.commit.commit.tree.sha;
       return searchBranch(repo, treeSha);
     })
     .catch(err => {
-      throw new VError(err, `Failed search for package.json in ${branch} branch of ${repoName}`);
+      throw new VError(
+        err,
+        `Failed search for package.json in ${branch} branch of ${repoName}`
+      );
     });
 }
 
 function getBlob(orgName, repoName, fileSha) {
   const repo = gh.getRepo(orgName, repoName);
 
-  return repo.getBlob(fileSha)
+  return repo
+    .getBlob(fileSha)
     .then(resp => {
       return resp.data;
     })
@@ -88,7 +95,6 @@ function getBlob(orgName, repoName, fileSha) {
 }
 
 module.exports = {
-  getGithubConfig,
   init,
   getOrganizationRepos,
   findPackageJson,

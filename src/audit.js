@@ -5,12 +5,12 @@ const fetch = require("node-fetch");
 
 const apiPath = "/api/v3/component-report";
 
-const apiOptions = {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/vnd.ossindex.component-report-request.v1+json"
-  }
-};
+// const apiOptions = {
+//   method: "POST",
+//   headers: {
+//     "Content-Type": "application/vnd.ossindex.component-report-request.v1+json"
+//   }
+// };
 
 function getCoordinates(pkgInfo) {
   let coordinates = [];
@@ -22,17 +22,21 @@ function getCoordinates(pkgInfo) {
   };
 }
 
-function getAuditReport(config, pkgInfo) {
-  let auth = Buffer.from(`${config.ossUser}:${config.ossToken}`).toString("base64");
+function getAuditReport(pkgInfo) {
+  let ossUser = process.env.OSSUSER;
+  let ossToken = process.env.OSSTOKEN;
+  let auth = Buffer.from(`${ossUser}:${ossToken}`).toString("base64");
   let options = {
     method: "POST",
     body: JSON.stringify(getCoordinates(pkgInfo)),
     headers: {
-      "Content-Type": "application/vnd.ossindex.component-report-request.v1+json",
-      "Authorization": "Basic " + auth
+      "Content-Type":
+        "application/vnd.ossindex.component-report-request.v1+json",
+      Authorization: "Basic " + auth
     }
   };
-  let url = "https://" + config.ossHost + apiPath;
+  let ossHost = process.env.OSSHOST;
+  let url = "https://" + ossHost + apiPath;
   return fetch(url, options)
     .then(resp => {
       if (resp.ok) {
@@ -58,7 +62,7 @@ function getAuditReport(config, pkgInfo) {
     });
 }
 
-function doLargeAuditReport(rc, pkgInfo) {
+function doLargeAuditReport(pkgInfo) {
   let maxSize = 60;
   let cnt = 0;
   let pkgs = [];
@@ -76,7 +80,7 @@ function doLargeAuditReport(rc, pkgInfo) {
   }
   let promises = [];
   for (let p of pkgs) {
-    promises.push(getAuditReport(rc, p));
+    promises.push(getAuditReport(p));
   }
   return Promise.all(promises)
     .then(rpts => {

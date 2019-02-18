@@ -1,11 +1,13 @@
 "use strict";
 
-const config = require("./config");
+require("dotenv").config();
+
+const VError = require("verror");
 const github = require("./github");
 const packages = require("./packages");
 const audit = require("./audit");
+const db = require("./db");
 
-const rc = config.getConfig(".github-npm-report.json");
 const orgUnit = process.argv[2];
 const repoName = process.argv[3];
 const branch = process.argv[4];
@@ -13,16 +15,22 @@ const branch = process.argv[4];
 async function buildPackageLists(orgName, repoName, packageFiles) {
   let depInfo = new Map();
   let devDepInfo = new Map();
-  
+
   for (let [name, sha] of packageFiles) {
     if (name.match(/package.json/)) {
       let pkgObj = await github.getBlob(orgName, repoName, sha);
       depInfo = packages.parsePackageJsonObj(pkgObj, depInfo, "dependencies");
-      devDepInfo = packages.parsePackageJsonObj(pkgObj, devDepInfo, "devDependencies");
+      devDepInfo = packages.parsePackageJsonObj(
+        pkgObj,
+        devDepInfo,
+        "devDependencies"
+      );
     }
   }
   return [depInfo, devDepInfo];
 }
+
+// package keys in format pkg:npm/name@version
 
 function dumpToOrg(pkgInfo) {
   let packageKeys = [];
@@ -32,6 +40,7 @@ function dumpToOrg(pkgInfo) {
   packageKeys = packageKeys.sort();
   for (let p of packageKeys) {
     let info = pkgInfo.get(p);
+    console.dir(info);
     let name = p.split("/")[1];
     console.log(`** ${name} - ${info.description}`);
     console.log(`| Current | ${info.current} |`);
@@ -59,9 +68,31 @@ function dumpToOrg(pkgInfo) {
   }
 }
 
-github.init(rc);
+async function updateDatabase(pkgInfo) {
+  const logName = "updateDatabase";
 
-github.findPackageJson(orgUnit,repoName, branch)
+  try {
+    for (let pName of pkgInfo.keys()) {
+      let [name, version] = pName.split("/")[1].split("@");
+      let pkg = pkgInfo.get(pName);
+      let moduleId = await db.getModuleId(name, version);
+      if (moduleId !== undefined) {
+        await db.updateModule(moduleId, pkg);
+      } else {
+        await db.insertModule(name, version, pkg);
+      }
+      await db.updateDependencies(name, version, pkg);
+    }
+    return true;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+github.init();
+
+github
+  .findPackageJson(orgUnit, repoName, branch)
   .then(files => {
     return buildPackageLists(orgUnit, repoName, files);
   })
@@ -74,8 +105,8 @@ github.findPackageJson(orgUnit,repoName, branch)
   .then(([dep, dev]) => {
     console.log(`dep size ${dep.size} dev size ${dev.size}`);
     return Promise.all([
-      audit.doLargeAuditReport(rc, dep),
-      audit.getAuditReport(rc, dev)
+      audit.doLargeAuditReport(dep),
+      audit.getAuditReport(dev)
     ]);
   })
   .then(([depRpt, devRpt]) => {
@@ -90,6 +121,3 @@ github.findPackageJson(orgUnit,repoName, branch)
   .catch(err => {
     console.error(err.message);
   });
-
-
-
