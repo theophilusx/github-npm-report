@@ -49,7 +49,9 @@ function getAuditReport(pkgInfo) {
       for (let r of data) {
         let coord = r.coordinates.toLowerCase();
         if (pkgInfo.has(coord)) {
-          pkgInfo.get(coord).description = r.description;
+          if (r.description) {
+            pkgInfo.get(coord).description = r.description;
+          }
           pkgInfo.get(coord).vulnerabilities = r.vulnerabilities;
         } else {
           console.log(`${r.coordinates} not found in package info map`);
