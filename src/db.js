@@ -60,7 +60,7 @@ async function insertModule(name, version, module) {
   try {
     let rslt = await sqlExec(sql, [
       name,
-      version,
+      module.current,
       module.description,
       module.next,
       module.latest
@@ -94,35 +94,48 @@ async function updateModule(moduleId, module) {
   }
 }
 
+async function knownDependency(parentId, childId) {
+  const logName = `${moduleName}.knownDependencies`;
+  const sql =
+    "SELECT count(*) cnt FROM npmjs.module_dependencies " +
+    "WHERE parent_id = $1 and child_id = $2";
+
+  try {
+    let rslt = sqlExec(sql, [parentId, childId]);
+    if (rslt.rowCount) {
+      return true;
+    }
+    return false;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
 async function updateDependencies(name, version, module) {
   const logName = `${moduleName}.updateDependencies`;
 
   try {
-    let parentId = await getModuleId(name, version);
-    for (let m of module.usedBy) {
-      let name = m.name;
-      let version = m.version;
-      let childId = await getModuleId(name, version);
-      if (childId === undefined) {
-        let versionInfo = await packages.getVersionInfo(name, version);
-        let rslt = await insertModule(name, version, {
-          name: m.name,
-          version: m.version,
-          description: m.description,
-          next: versionInfo.next,
-          latest: versionInfo.latest
-        });
-        childId = rslt.rows[0].module_id;
-        let sql =
-          "INSERT INTO npmjs.module_dependencies (" +
-          "parent_id, child_id) VALUES ($1, $2)";
-        await sqlExec(sql, [parentId, childId]);
+    let pkgId = await getModuleId(name, version);
+    for (let [userName, userVersion] of module.usedBy) {
+      let userId = await getModuleId(userName, userVersion);
+      if (userId === undefined) {
+        console.log(
+          `${moduleName} Used By module not known ${userName}@${userVersion}`
+        );
       } else {
-        let sql =
-          "UPDATE npmjs.module_dependencies " +
-          "SET last_seen = current_timestamp " +
-          "WHERE parent_id = $1 AND child_id = $2";
-        await sqlExec(sql, [parentId, childId]);
+        let known = await knownDependency(userId, pkgId);
+        if (known) {
+          let sql =
+            "UPDATE npmjs.module_dependencies " +
+            "SET last_seen = current_timestamp " +
+            "WHERE parent_id = $1 AND child_id = $2";
+          await sqlExec(sql, [userId, pkgId]);
+        } else {
+          let sql =
+            "INSERT INTO npmjs.module_dependencies (" +
+            "parent_id, child_id) VALUES ($1, $2)";
+          await sqlExec(sql, [userId, pkgId]);
+        }
       }
     }
     return true;
@@ -135,5 +148,6 @@ module.exports = {
   getModuleId,
   insertModule,
   updateModule,
+  knownDependency,
   updateDependencies
 };
