@@ -144,10 +144,83 @@ async function updateDependencies(name, version, module) {
   }
 }
 
+async function knownVUlnerability(vId) {
+  const logName = `${moduleName}.knownVulnerability`;
+  const sql = "SELECT v_id FROM npmjs.vulnerabilities WHERE v_id = $1";
+
+  try {
+    let rslt = await sqlExec(sql, [vId]);
+    if (rslt.rowCount) {
+      return true;
+    }
+    return false;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function insertVulnerability(vData) {
+  const logName = `${moduleName}.insertvulnerability`;
+  const sql =
+    "INSERT INTO npmjs.vulnerabilities (" +
+    "v_id, title, description, cvss_score, cvss_vector, cve, reference) " +
+    "VALUES ($1, $2, $3, $4, $5, $6, $7)";
+
+  try {
+    let rslt = sqlExec(sql, [
+      vData.id,
+      vData.title,
+      vData.description,
+      vData.cvssScore,
+      vData.cvssVector,
+      vData.cve,
+      vData.reference
+    ]);
+    return rslt;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function knownVulnerabilityMapping(vId, mId) {
+  const logName = `${moduleName}.knownVulnerabilityMapping`;
+  const sql =
+    "SELECT module_id FROM npmjs.vulnerability_map " +
+    "WHERE module_id = $1 AND vulnerability_id = $2";
+
+  try {
+    let rslt = await sqlExec(sql, [mId, vId]);
+    if (rslt.rowCount) {
+      return true;
+    }
+    return false;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function insertVulnerabilityMapping(mId, vId) {
+  const logName = `${moduleName}.insertvulnerabiityMapping`;
+  const sql =
+    "INSERT INTO npmjs.vulnerability_map (module_id, vulnerability_id)" +
+    " VALUES ($1, $2)";
+
+  try {
+    let rslt = await sqlExec(sql, [mId, vId]);
+    return rslt;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
 module.exports = {
   getModuleId,
   insertModule,
   updateModule,
   knownDependency,
-  updateDependencies
+  updateDependencies,
+  knownVUlnerability,
+  insertVulnerability,
+  knownVulnerabilityMapping,
+  insertVulnerabilityMapping
 };
