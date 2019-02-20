@@ -18,7 +18,6 @@ async function buildPackageLists(orgName, repoName, packageFiles) {
   for (let [name, sha] of packageFiles) {
     if (name.match(/package.json/)) {
       let pkgObj = await github.getBlob(orgName, repoName, sha);
-      console.dir(pkgObj);
       packageMap = await packages.parsePackageJSON(pkgObj, packageMap);
     }
   }

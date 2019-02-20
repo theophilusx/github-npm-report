@@ -120,7 +120,7 @@ async function updateDependencies(name, version, module) {
       let userId = await getModuleId(userName, userVersion);
       if (userId === undefined) {
         console.log(
-          `${moduleName} Used By module not known ${userName}@${userVersion}`
+          `${moduleName}: Used By module not known ${userName}@${userVersion}`
         );
       } else {
         let known = await knownDependency(userId, pkgId);
