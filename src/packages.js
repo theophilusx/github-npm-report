@@ -16,24 +16,15 @@ async function getVersionInfo(name, ver) {
 
   try {
     let version = semver.valid(semver.coerce(ver));
-    if (version) {
-      let latest = await latestVersion(name);
-      let majorVersion = `<${nextMajor(version)}`;
-      let majorLatest = await latestVersion(name, {version: majorVersion});
-      return {
-        current: version,
-        next: majorLatest,
-        latest: latest
-      };
-    }
-    console.log(`${logName} Package with bad version: ${name}@${ver}`);
+    let latest = await latestVersion(name);
+    let majorVersion = `<${nextMajor(version)}`;
+    let majorLatest = await latestVersion(name, {version: majorVersion});
     return {
-      current: ver,
-      next: "Unknown",
-      latest: "Unknown"
+      current: version,
+      next: majorLatest,
+      latest: latest
     };
   } catch (err) {
-    console.error(`${logName}: ${err.message}`);
     return {
       current: ver,
       next: "Unknown",
@@ -47,8 +38,7 @@ async function parsePackageJSON(pkgObj, packages) {
 
   try {
     let versionInfo = await getVersionInfo(pkgObj.name, pkgObj.version);
-    console.dir("versionInfo", versionInfo);
-    let currentPkg = {
+    let curPkg = {
       name: pkgObj.name,
       current: versionInfo.current,
       next: versionInfo.next,
@@ -56,30 +46,29 @@ async function parsePackageJSON(pkgObj, packages) {
       description: pkgObj.description || "Unknown",
       usedBy: []
     };
-    let coords = `pkg:npm/${currentPkg.name}@${
-      currentPkg.current
-    }`.toLowerCase();
+    let coords = `pkg:npm/${curPkg.name}@${curPkg.current}`.toLowerCase();
     if (!packages.has(coords)) {
-      packages.set(coords, currentPkg);
+      packages.set(coords, curPkg);
     } else {
-      packages.get(coords).description = pkgObj.description;
+      packages.get(coords).description = curPkg.description;
     }
     for (let d of ["dependencies", "devDependencies"]) {
       let dep = pkgObj[d];
+      if (!dep) {
+        continue;
+      }
       for (let k of Object.keys(dep)) {
         versionInfo = await getVersionInfo(k, dep[k]);
         coords = `pkg:npm/${k}@${versionInfo.current}`.toLowerCase();
         if (packages.has(coords)) {
-          packages
-            .get(coords)
-            .usedBy.push([currentPkg.name, currentPkg.current]);
+          packages.get(coords).usedBy.push([curPkg.name, curPkg.current]);
         } else {
           packages.set(coords, {
             name: k,
             current: versionInfo.current,
             next: versionInfo.next,
             latest: versionInfo.latest,
-            usedBy: [[currentPkg.name, currentPkg.current]]
+            usedBy: [[curPkg.name, curPkg.current]]
           });
         }
       }
