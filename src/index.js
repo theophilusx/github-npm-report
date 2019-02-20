@@ -13,60 +13,19 @@ const repoName = process.argv[3];
 const branch = process.argv[4];
 
 async function buildPackageLists(orgName, repoName, packageFiles) {
-  let depInfo = new Map();
-  let devDepInfo = new Map();
+  let packageMap = new Map();
 
   for (let [name, sha] of packageFiles) {
     if (name.match(/package.json/)) {
       let pkgObj = await github.getBlob(orgName, repoName, sha);
-      depInfo = packages.parsePackageJsonObj(pkgObj, depInfo, "dependencies");
-      devDepInfo = packages.parsePackageJsonObj(
-        pkgObj,
-        devDepInfo,
-        "devDependencies"
-      );
+      console.dir(pkgObj);
+      packageMap = await packages.parsePackageJSON(pkgObj, packageMap);
     }
   }
-  return [depInfo, devDepInfo];
+  return packageMap;
 }
 
 // package keys in format pkg:npm/name@version
-
-function dumpToOrg(pkgInfo) {
-  let packageKeys = [];
-  for (let i of pkgInfo.keys()) {
-    packageKeys.push(i);
-  }
-  packageKeys = packageKeys.sort();
-  for (let p of packageKeys) {
-    let info = pkgInfo.get(p);
-    console.dir(info);
-    let name = p.split("/")[1];
-    console.log(`** ${name} - ${info.description}`);
-    console.log(`| Current | ${info.current} |`);
-    console.log(`| Next | ${info.next} |`);
-    console.log(`| Latest | ${info.latest} |`);
-    if (info.usedBy && info.usedBy.length) {
-      console.log("*** Used by");
-      for (let u of info.usedBy) {
-        console.log(`| ${u.name}@${u.version} | ${u.description} |`);
-      }
-    }
-    if (info.vulnerabilities && info.vulnerabilities.length) {
-      console.log("*** Vulnerabilities");
-      for (let v of info.vulnerabilities) {
-        console.log(`**** Title: ${v.title}`);
-        console.log(`${v.description}`);
-        console.log(`| ID | ${v.id} |`);
-        console.log(`| CVSS Score | ${v.cvssScore} |`);
-        console.log(`| CVSS Vector | ${v.cvssVector} |`);
-        console.log(`| CWE: | ${v.cwe} |`);
-        console.log(`| References | ${v.reference} |`);
-      }
-    }
-    console.log("");
-  }
-}
 
 async function updateDatabase(pkgInfo) {
   const logName = "updateDatabase";
@@ -81,7 +40,36 @@ async function updateDatabase(pkgInfo) {
       } else {
         await db.insertModule(name, version, pkg);
       }
-      await db.updateDependencies(name, version, pkg);
+      if (pkg.usedBy.length) {
+        await db.updateDependencies(name, version, pkg);
+      }
+    }
+    return true;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function updateVulnerabilities(pkgInfo) {
+  const logName = "updatevulnerabilities";
+
+  try {
+    for (let p of pkgInfo.values()) {
+      let pId = await db.getModuleId(p.name, p.current);
+      if (!pId) {
+        console.log(`${logName} Unknown module ${p.name}/${p.current}`);
+        continue;
+      }
+      for (let v of p.vulnerabilities) {
+        let known = await db.knownVulnerability(v.id);
+        if (!known) {
+          await db.insertVulnerability(v);
+        }
+        let knownMapping = await db.knownVulnerabilityMapping(pId, v.id);
+        if (!knownMapping) {
+          await db.insertVulnerabilityMapping(pId, v.id);
+        }
+      }
     }
     return true;
   } catch (err) {
@@ -96,31 +84,13 @@ github
   .then(files => {
     return buildPackageLists(orgUnit, repoName, files);
   })
-  .then(([dep, dev]) => {
-    return Promise.all([
-      packages.packageVersions(dep),
-      packages.packageVersions(dev)
-    ]);
+  .then(pkgInfo => {
+    console.log(`Pakcage count: ${pkgInfo.size}`);
+    return audit.doLargeAuditReport(pkgInfo);
   })
-  .then(([dep, dev]) => {
-    console.log(`dep size ${dep.size} dev size ${dev.size}`);
-    return Promise.all([
-      audit.doLargeAuditReport(dep),
-      audit.getAuditReport(dev)
-    ]);
-  })
-  // .then(([depRpt, devRpt]) => {
-  //   console.log(`#+TITLE: ${repoName} (${branch})`);
-  //   console.log("#+OPTIONS: ^:nil num:nil toc:2 tags:nil |:t");
-  //   console.log("");
-  //   console.log("* Core Dependencies");
-  //   dumpToOrg(depRpt);
-  //   console.log("* Development Dependencies");
-  //   dumpToOrg(devRpt);
-  // })
-  .then(async ([depRpt, devRpt]) => {
-    await updateDatabase(depRpt);
-    await updateDatabase(devRpt);
+  .then(async pkgInfo => {
+    await updateDatabase(pkgInfo);
+    await updateVulnerabilities(pkgInfo);
     return true;
   })
   .catch(err => {

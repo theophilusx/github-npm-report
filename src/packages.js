@@ -79,7 +79,7 @@ async function parsePackageJSON(pkgObj, packages) {
             current: versionInfo.current,
             next: versionInfo.next,
             latest: versionInfo.latest,
-            usedBy: [[currentPkg.name, currentPkg.version]]
+            usedBy: [[currentPkg.name, currentPkg.current]]
           });
         }
       }

@@ -144,7 +144,7 @@ async function updateDependencies(name, version, module) {
   }
 }
 
-async function knownVUlnerability(vId) {
+async function knownVulnerability(vId) {
   const logName = `${moduleName}.knownVulnerability`;
   const sql = "SELECT v_id FROM npmjs.vulnerabilities WHERE v_id = $1";
 
@@ -182,7 +182,7 @@ async function insertVulnerability(vData) {
   }
 }
 
-async function knownVulnerabilityMapping(vId, mId) {
+async function knownVulnerabilityMapping(mId, vId) {
   const logName = `${moduleName}.knownVulnerabilityMapping`;
   const sql =
     "SELECT module_id FROM npmjs.vulnerability_map " +
@@ -200,7 +200,7 @@ async function knownVulnerabilityMapping(vId, mId) {
 }
 
 async function insertVulnerabilityMapping(mId, vId) {
-  const logName = `${moduleName}.insertvulnerabiityMapping`;
+  const logName = `${moduleName}.insertVulnerabiityMapping`;
   const sql =
     "INSERT INTO npmjs.vulnerability_map (module_id, vulnerability_id)" +
     " VALUES ($1, $2)";
@@ -219,7 +219,7 @@ module.exports = {
   updateModule,
   knownDependency,
   updateDependencies,
-  knownVUlnerability,
+  knownVulnerability,
   insertVulnerability,
   knownVulnerabilityMapping,
   insertVulnerabilityMapping
