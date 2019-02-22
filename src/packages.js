@@ -47,7 +47,8 @@ async function parsePackageJSON(pkgObj, packages, pkgName) {
         next: versionInfo.next,
         latest: versionInfo.latest,
         description: pkgObj.description || "Unknown",
-        usedBy: new Set()
+        usedBy: new Set(),
+        vulnerabilities: []
       });
     } else {
       if (pkgObj.description) {
@@ -61,6 +62,10 @@ async function parsePackageJSON(pkgObj, packages, pkgName) {
         continue;
       }
       for (let k of Object.keys(dep)) {
+        if (dep[k].match(/^(file|http|https):/)) {
+          // relative packages - skip
+          continue;
+        }
         versionInfo = await getVersionInfo(k, dep[k]);
         coords = `pkg:npm/${k}@${versionInfo.current}`.toLowerCase();
         if (packages.has(coords)) {
@@ -74,7 +79,8 @@ async function parsePackageJSON(pkgObj, packages, pkgName) {
             next: versionInfo.next,
             latest: versionInfo.latest,
             description: "Unknown",
-            usedBy: new Set([[name, version]])
+            usedBy: new Set([[name, version]]),
+            vulnerabilities: []
           });
         }
       }
