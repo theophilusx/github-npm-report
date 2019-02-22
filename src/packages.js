@@ -12,8 +12,6 @@ function nextMajor(v) {
 }
 
 async function getVersionInfo(name, ver) {
-  const logName = "getVersionInfo";
-
   try {
     let version = semver.valid(semver.coerce(ver));
     let latest = await latestVersion(name);
@@ -33,24 +31,29 @@ async function getVersionInfo(name, ver) {
   }
 }
 
-async function parsePackageJSON(pkgObj, packages) {
+async function parsePackageJSON(pkgObj, packages, pkgName) {
   const logName = `${moduleName}.parsePackageJSON`;
 
   try {
     let versionInfo = await getVersionInfo(pkgObj.name, pkgObj.version);
-    let curPkg = {
-      name: pkgObj.name,
-      current: versionInfo.current,
-      next: versionInfo.next,
-      latest: versionInfo.latest,
-      description: pkgObj.description || "Unknown",
-      usedBy: []
-    };
-    let coords = `pkg:npm/${curPkg.name}@${curPkg.current}`.toLowerCase();
+    let name = pkgObj.name;
+    let version = versionInfo.current;
+    let coords = `pkg:npm/${name}@${version}`.toLowerCase();
     if (!packages.has(coords)) {
-      packages.set(coords, curPkg);
+      packages.set(coords, {
+        name: pkgObj.name,
+        paths: new Set([pkgName]),
+        current: versionInfo.current,
+        next: versionInfo.next,
+        latest: versionInfo.latest,
+        description: pkgObj.description || "Unknown",
+        usedBy: new Set()
+      });
     } else {
-      packages.get(coords).description = curPkg.description;
+      if (pkgObj.description) {
+        packages.get(coords).description = pkgObj.description;
+      }
+      packages.get(coords).paths.add(pkgName);
     }
     for (let d of ["dependencies", "devDependencies"]) {
       let dep = pkgObj[d];
@@ -61,14 +64,17 @@ async function parsePackageJSON(pkgObj, packages) {
         versionInfo = await getVersionInfo(k, dep[k]);
         coords = `pkg:npm/${k}@${versionInfo.current}`.toLowerCase();
         if (packages.has(coords)) {
-          packages.get(coords).usedBy.push([curPkg.name, curPkg.current]);
+          packages.get(coords).usedBy.add([name, version]);
+          packages.get(coords).paths.add(pkgName);
         } else {
           packages.set(coords, {
             name: k,
+            paths: new Set([pkgName]),
             current: versionInfo.current,
             next: versionInfo.next,
             latest: versionInfo.latest,
-            usedBy: [[curPkg.name, curPkg.current]]
+            description: "Unknown",
+            usedBy: new Set([[name, version]])
           });
         }
       }
@@ -77,7 +83,7 @@ async function parsePackageJSON(pkgObj, packages) {
   } catch (err) {
     throw new VError(
       err,
-      `${logName} Failed to process package ${pkgObj.name}`
+      `${logName} Failed to process package ${pkgObj.name} from ${pkgName}`
     );
   }
 }
