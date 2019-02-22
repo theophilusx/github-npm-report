@@ -5,7 +5,6 @@ const moduleName = "db";
 const VError = require("verror");
 const assert = require("assert");
 const {Pool} = require("pg");
-const packages = require("./packages");
 
 const pool = new Pool();
 
@@ -29,6 +28,28 @@ async function sqlExec(sql, params) {
       client.release();
     }
     throw new VError(err, `${logName}`);
+  }
+}
+
+async function updateLastSeen(table, where) {
+  const logName = `${moduleName}.updateLastSeen`;
+  const sql =
+    `UPDATE npmjs.${table} ` +
+    "last_seen_ts = current_timestamp " +
+    "WHERE " +
+    where
+      .map(([col, value]) => {
+        return typeof value === "string"
+          ? `${col} = '${value}'`
+          : `${col} = ${value}`;
+      })
+      .join(" AND ");
+
+  try {
+    let rslt = await sqlExec(sql);
+    return rslt.rowCount;
+  } catch (err) {
+    throw new VError(err, `${logName} `);
   }
 }
 
@@ -78,7 +99,7 @@ async function updateModule(moduleId, module) {
     "SET description = $1, " +
     "latest_minor_version = $2, " +
     "latest_major_version = $3, " +
-    "last_seen = current_timestamp " +
+    "last_seen_ts = current_timestamp " +
     "WHERE module_id = $4";
 
   try {
@@ -125,11 +146,10 @@ async function updateDependencies(name, version, module) {
       } else {
         let known = await knownDependency(userId, pkgId);
         if (known) {
-          let sql =
-            "UPDATE npmjs.module_dependencies " +
-            "SET last_seen = current_timestamp " +
-            "WHERE parent_id = $1 AND child_id = $2";
-          await sqlExec(sql, [userId, pkgId]);
+          await updateLastSeen("module_dependencies", [
+            ["parent_id", userId],
+            ["child_id", pkgId]
+          ]);
         } else {
           let sql =
             "INSERT INTO npmjs.module_dependencies (" +
@@ -213,7 +233,108 @@ async function insertVulnerabilityMapping(mId, vId) {
   }
 }
 
+// repositories
+
+async function knownRepository(unit, repo) {
+  const logName = `${moduleName}.knownRepository`;
+  const sql =
+    "SELECT repo_id FROM npmjs.repositories " +
+    "WHERE org_unit = $1 AND repository = $2";
+
+  try {
+    let rslt = await sqlExec(sql, [unit, repo]);
+    if (rslt.rowCount) {
+      return rslt.rows[0].repo_id;
+    }
+    return false;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function addRepository(orgUnit, repo) {
+  const logName = `${moduleName}.addRepository`;
+  const sql =
+    "INSERT INTO npmjs.repositories (org_unit, repository) " +
+    "VALUES ($1, $2) RETURNING repo_id";
+
+  try {
+    let rslt = await sqlExec(sql, [orgUnit, repo]);
+    return rslt.rows[0].repo_id;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function knownPackage(repoId, pkgPath) {
+  const logName = `${moduleName}.knwonPackage`;
+  const sql =
+    "SELECT package_id FROM npmjs.package_paths " +
+    "WHERE repo_id = $1 AND package_path = $2";
+
+  try {
+    let rslt = await sqlExec(sql, [repoId, pkgPath]);
+    if (rslt.rowCount) {
+      return rslt.rows[0].package_id;
+    }
+    return false;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function addPackage(repoId, pkgPath) {
+  const logName = `${moduleName}.addPackage`;
+  const sql =
+    "INSERT INTO npmjs.package_paths " +
+    "(repo_id, package_paths) VALUES ($1, $2) " +
+    "RETURNS package_id";
+
+  try {
+    let rslt = await sqlExec(sql, [repoId, pkgPath]);
+    return rslt.rows[0].package_id;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function knownModuleMapping(moduleId, pkgId) {
+  const logName = `${moduleName}.knownModuleMapping`;
+  const sql =
+    "SELECT map_id FROM npmjs.package_module_map " +
+    "WHERE module_id = $1 AND package_id = $2";
+
+  try {
+    let rslt = await sqlExec(sql, [moduleId, pkgId]);
+    if (rslt.rowCount) {
+      return rslt.rows[0].map_id;
+    }
+    return false;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
+async function insertModuleMapping(moduleId, pkgId) {
+  const logName = `${moduleName}.insertModuleMapping`;
+  const sql =
+    "INSERT INTO npmjs.pacage_module_map " +
+    "(module_id, package_id) VALUES ($1, $2) " +
+    "RETURNING map_id";
+
+  try {
+    let rslt = await sqlExec(sql, [moduleId, pkgId]);
+    if (rslt.rowCount) {
+      return rslt.rows[0].map_id;
+    }
+    return undefined;
+  } catch (err) {
+    throw new VError(err, `${logName}`);
+  }
+}
+
 module.exports = {
+  updateLastSeen,
   getModuleId,
   insertModule,
   updateModule,
@@ -222,5 +343,11 @@ module.exports = {
   knownVulnerability,
   insertVulnerability,
   knownVulnerabilityMapping,
-  insertVulnerabilityMapping
+  insertVulnerabilityMapping,
+  knownRepository,
+  addRepository,
+  knownPackage,
+  addPackage,
+  knownModuleMapping,
+  insertModuleMapping
 };
