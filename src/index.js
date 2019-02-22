@@ -39,10 +39,10 @@ async function updateDatabase(orgUnit, repo, pkgInfo) {
       let [name, version] = pName.split("/")[1].split("@");
       let pkg = pkgInfo.get(pName);
       let moduleId = await db.getModuleId(name, version);
-      if (moduleId !== undefined) {
+      if (moduleId) {
         await db.updateModule(moduleId, pkg);
       } else {
-        await db.insertModule(name, version, pkg);
+        moduleId = await db.addModule(name, version, pkg);
       }
       if (pkg.paths.size) {
         for (let pkgPath of pkg.paths) {
@@ -84,11 +84,11 @@ async function updateVulnerabilities(pkgInfo) {
       for (let v of p.vulnerabilities) {
         let known = await db.knownVulnerability(v.id);
         if (!known) {
-          await db.insertVulnerability(v);
+          await db.addVulnerability(v);
         }
         let knownMapping = await db.knownVulnerabilityMapping(pId, v.id);
         if (!knownMapping) {
-          await db.insertVulnerabilityMapping(pId, v.id);
+          await db.addVulnerabilityMapping(pId, v.id);
         }
       }
     }
@@ -110,7 +110,7 @@ github
     return audit.doLargeAuditReport(pkgInfo);
   })
   .then(async pkgInfo => {
-    await updateDatabase(pkgInfo);
+    await updateDatabase(orgUnit, repoName, pkgInfo);
     await updateVulnerabilities(pkgInfo);
     return true;
   })

@@ -35,7 +35,7 @@ async function updateLastSeen(table, where) {
   const logName = `${moduleName}.updateLastSeen`;
   const sql =
     `UPDATE npmjs.${table} ` +
-    "last_seen_ts = current_timestamp " +
+    "SET last_seen_ts = current_timestamp " +
     "WHERE " +
     where
       .map(([col, value]) => {
@@ -49,7 +49,7 @@ async function updateLastSeen(table, where) {
     let rslt = await sqlExec(sql);
     return rslt.rowCount;
   } catch (err) {
-    throw new VError(err, `${logName} `);
+    throw new VError(err, `${logName} SQL ${sql}`);
   }
 }
 
@@ -70,8 +70,8 @@ async function getModuleId(name, version) {
   }
 }
 
-async function insertModule(name, version, module) {
-  const logName = `${moduleName}.insertModule`;
+async function addModule(name, version, module) {
+  const logName = `${moduleName}.addModule`;
   const sql =
     "INSERT INTO npmjs.modules (" +
     "module_name, module_version, description, latest_minor_version, " +
@@ -86,7 +86,10 @@ async function insertModule(name, version, module) {
       module.next,
       module.latest
     ]);
-    return rslt;
+    if (rslt.rowCount) {
+      return rslt.rows[0].module_id;
+    }
+    return undefined;
   } catch (err) {
     throw new VError(err, `${logName}`);
   }
@@ -178,8 +181,8 @@ async function knownVulnerability(vId) {
   }
 }
 
-async function insertVulnerability(vData) {
-  const logName = `${moduleName}.insertvulnerability`;
+async function addVulnerability(vData) {
+  const logName = `${moduleName}.addVulnerability`;
   const sql =
     "INSERT INTO npmjs.vulnerabilities (" +
     "v_id, title, description, cvss_score, cvss_vector, cve, reference) " +
@@ -218,8 +221,8 @@ async function knownVulnerabilityMapping(mId, vId) {
   }
 }
 
-async function insertVulnerabilityMapping(mId, vId) {
-  const logName = `${moduleName}.insertVulnerabiityMapping`;
+async function addVulnerabilityMapping(mId, vId) {
+  const logName = `${moduleName}.addVulnerabiityMapping`;
   const sql =
     "INSERT INTO npmjs.vulnerability_map (module_id, vulnerability_id)" +
     " VALUES ($1, $2)";
@@ -286,8 +289,8 @@ async function addPackage(repoId, pkgPath) {
   const logName = `${moduleName}.addPackage`;
   const sql =
     "INSERT INTO npmjs.package_paths " +
-    "(repo_id, package_paths) VALUES ($1, $2) " +
-    "RETURNS package_id";
+    "(repo_id, package_path) VALUES ($1, $2) " +
+    "RETURNING package_id";
 
   try {
     let rslt = await sqlExec(sql, [repoId, pkgPath]);
@@ -314,10 +317,10 @@ async function knownModuleMapping(moduleId, pkgId) {
   }
 }
 
-async function insertModuleMapping(moduleId, pkgId) {
-  const logName = `${moduleName}.insertModuleMapping`;
+async function addModuleMapping(moduleId, pkgId) {
+  const logName = `${moduleName}.addModuleMapping`;
   const sql =
-    "INSERT INTO npmjs.pacage_module_map " +
+    "INSERT INTO npmjs.package_module_map " +
     "(module_id, package_id) VALUES ($1, $2) " +
     "RETURNING map_id";
 
@@ -335,18 +338,18 @@ async function insertModuleMapping(moduleId, pkgId) {
 module.exports = {
   updateLastSeen,
   getModuleId,
-  insertModule,
+  addModule,
   updateModule,
   knownDependency,
   updateDependencies,
   knownVulnerability,
-  insertVulnerability,
+  addVulnerability,
   knownVulnerabilityMapping,
-  insertVulnerabilityMapping,
+  addVulnerabilityMapping,
   knownRepository,
   addRepository,
   knownPackage,
   addPackage,
   knownModuleMapping,
-  insertModuleMapping
+  addModuleMapping
 };
