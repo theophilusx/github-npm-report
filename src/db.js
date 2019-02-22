@@ -132,12 +132,11 @@ async function knownDependency(parentId, childId) {
   }
 }
 
-async function updateDependencies(name, version, module) {
+async function updateDependencies(pkgId, usedBy) {
   const logName = `${moduleName}.updateDependencies`;
 
   try {
-    let pkgId = await getModuleId(name, version);
-    for (let [userName, userVersion] of module.usedBy) {
+    for (let [userName, userVersion] of usedBy) {
       let userId = await getModuleId(userName, userVersion);
       if (userId === undefined) {
         console.log(
