@@ -36,12 +36,12 @@ async function parsePackageJSON(pkgObj, packages, pkgName) {
 
   try {
     let versionInfo = await getVersionInfo(pkgObj.name, pkgObj.version);
-    let name = pkgObj.name;
+    let name = pkgObj.name.toLowerCase();
     let version = versionInfo.current;
     let coords = `pkg:npm/${name}@${version}`.toLowerCase();
     if (!packages.has(coords)) {
       packages.set(coords, {
-        name: pkgObj.name,
+        name: pkgObj.name.toLowerCase(),
         paths: new Set([pkgName]),
         current: versionInfo.current,
         next: versionInfo.next,
@@ -68,7 +68,7 @@ async function parsePackageJSON(pkgObj, packages, pkgName) {
           packages.get(coords).paths.add(pkgName);
         } else {
           packages.set(coords, {
-            name: k,
+            name: k.toLowerCase(),
             paths: new Set([pkgName]),
             current: versionInfo.current,
             next: versionInfo.next,
