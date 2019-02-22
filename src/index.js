@@ -17,8 +17,9 @@ async function buildPackageLists(orgName, repoName, packageFiles) {
 
   for (let [name, sha] of packageFiles) {
     if (name.match(/package.json/)) {
+      console.log(`File: ${name}`);
       let pkgObj = await github.getBlob(orgName, repoName, sha);
-      packageMap = await packages.parsePackageJSON(pkgObj, packageMap);
+      packageMap = await packages.parsePackageJSON(pkgObj, packageMap, name);
     }
   }
   return packageMap;
@@ -26,10 +27,14 @@ async function buildPackageLists(orgName, repoName, packageFiles) {
 
 // package keys in format pkg:npm/name@version
 
-async function updateDatabase(pkgInfo) {
+async function updateDatabase(orgUnit, repo, pkgInfo) {
   const logName = "updateDatabase";
 
   try {
+    let repoId = await db.knownRepository(orgUnit, repo);
+    if (!repoId) {
+      repoId = await db.addRepository(orgUnit, repo);
+    }
     for (let pName of pkgInfo.keys()) {
       let [name, version] = pName.split("/")[1].split("@");
       let pkg = pkgInfo.get(pName);
@@ -39,8 +44,25 @@ async function updateDatabase(pkgInfo) {
       } else {
         await db.insertModule(name, version, pkg);
       }
-      if (pkg.usedBy.length) {
-        await db.updateDependencies(name, version, pkg);
+      if (pkg.paths.size) {
+        for (let pkgPath of pkg.paths) {
+          let pkgId = await db.knownPackage(repoId, pkgPath);
+          if (pkgId) {
+            await db.updateLastSeen("package_paths", [["package_id", pkgId]]);
+          } else {
+            pkgId = await db.addPackage(repoId, pkgPath);
+          }
+          if (!(await db.knownModuleMapping(moduleId, pkgId))) {
+            await db.addModuleMapping(moduleId, pkgId);
+          }
+        }
+      }
+    }
+    for (let pName of pkgInfo.keys()) {
+      let pkg = pkgInfo.get(pName);
+      let moduleId = await db.getModuleId(pkg.name, pkg.current);
+      if (pkg.usedBy.size) {
+        await db.updateDependencies(moduleId, pkg.usedBy);
       }
     }
     return true;
