@@ -30,7 +30,7 @@
     "github-api": "^3.2.3",
     "latest-version": "^5.1.0",
     "node-fetch": "^2.6.0",
-    "npm-registry-fetch": "^4.0.0",
+    "npm-registry-fetch": "^4.0.5",
     "pg": "^7.12.1",
     "semver": "^6.3.0",
     "verror": "^1.10.0"
